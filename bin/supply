@@ -54,7 +54,7 @@ echo "Create a directory"
 #ls -la
 
 # Copy a file from s3 bucket to current working directory
-mkdir -p .keystore/prod01-cert-details
+  mkdir -p .keystore/prod01-cert-details
   aws s3 cp s3://ir-ac-test/mytestfile.txt ./.keystore/prod01-cert-details
   ls -lart /.keystore/prod01-cert-details
 popd
