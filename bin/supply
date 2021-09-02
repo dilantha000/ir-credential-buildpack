@@ -50,13 +50,13 @@ env | grep AWS
 
 # mkdir -p "dirname" = create sub-directories of a directory
 echo "Create a directory"
-mkdir -p .keystore/prod
-ls -la
+#mkdir -p .keystore/prod
+#ls -la
 
 # Copy a file from s3 bucket to current working directory
-aws s3 cp s3://ir-ac-test/mytestfile.txt ./.keystore/prod
-ls -la
-ls -r  .keystore/prod
+#aws s3 cp s3://ir-ac-test/mytestfile.txt ./.keystore/prod
+#ls -la
+#ls -r  .keystore/prod
 popd
 
 
