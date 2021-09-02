@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+BUILD_DIR=${1}
+CACHE_DIR=${2}
+DEPS_DIR=${3}
+INDEX=${4}
+BUILDPACK_DIR=$(dirname $(readlink -f ${BASH_SOURCE%/*}))
+
+echo "BUILDPACK_DIR   = ${BUILDPACK_DIR}"
+echo "BUILD_DIR       = ${BUILD_DIR}"
+echo "CACHE_DIR       = ${CACHE_DIR}"
+echo "DEPS_DIR        = ${DEPS_DIR}"
+echo "INDEX           = ${INDEX}"
+
+# Pull in dependencies for future use of keytool - bundled with JDK
+pushd "${CACHE_DIR}"
+  curl -L -O https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.10%2B9/OpenJDK11U-jdk_x64_linux_hotspot_11.0.10_9.tar.gz
+  tar xzf OpenJDK11U-jdk_x64_linux_hotspot_11.0.10_9.tar.gz
+  export PATH=$PWD/jdk-11.0.10+9/bin:$PATH
+
+  curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+  unzip awscliv2.zip
+  # -i copy all files to a specific directory
+  # -b install directory is symbolically linked to the file aws in the specified path
+  ./aws/install -i /tmp/aws-cli -b /tmp/bin
+  /tmp/bin/aws --version
+  ls -la
+  export PATH=/tmp/bin:$PATH
+popd
+
+pushd "${DEPS_DIR}/${INDEX}"
+
+echo $VCAP_SERVICES
+
+echo "Setting credentials"
+AWS_ACCESS_KEY_ID="$(echo $VCAP_SERVICES | jq -r '.["user-provided"][0].credentials.AWS_ACCESS_KEY_ID')"
+AWS_SECRET_ACCESS_KEY="$(echo $VCAP_SERVICES | jq -r '.["user-provided"][0].credentials.AWS_SECRET_ACCESS_KEY')"
+AWS_DEFAULT_REGION="$(echo $VCAP_SERVICES | jq -r '.["user-provided"][0].credentials.AWS_DEFAULT_REGION')"
+
+export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+export AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION
+
+aws configure list
+
+echo "AWS ENV VARIABLES:"
+env | grep AWS
+#aws s3api list-objects --bucket ir-ac-test --query 'Contents[].{Key: Key, Size:Size}'
+
+# mkdir -p "dirname" = create sub-directories of a directory
+echo "Create a directory"
+mkdir -p .keystore/prod
+ls -la
+
+# Copy a file from s3 bucket to current working directory
+aws s3 cp s3://ir-ac-test/mytestfile.txt ./.keystore/prod
+ls -la
+ls -r  .keystore/prod
+popd
+
+
+mkdir -p "${BUILD_DIR}/.profile.d"
+
+# s3_credentials.sh will be run when the app starts.
+S3_CREDENTIALS_SCRIPT_PATH="${BUILD_DIR}/.profile.d/s3_credentials.sh"
+# Make CUSTOM_KEYSTORE available as env variable when the script is run.
+#echo "export CUSTOM_KEYSTORE=/deps/${INDEX}/${KEYSTORE}" > "${S3_CREDENTIALS_SCRIPT_PATH}"
+echo $S3_CREDENTIALS_SCRIPT_PATH
+
+
+
+
